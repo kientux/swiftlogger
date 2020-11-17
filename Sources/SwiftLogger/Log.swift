@@ -11,6 +11,12 @@ import os
 
 private let subsystem: String = "com.sapo.mobile"
 
+public protocol WebsocketClientType {
+    func send(message: String)
+    func connect()
+    func disconnect()
+}
+
 public class Log {
     public enum Level: String {
         case debug
@@ -28,6 +34,12 @@ public class Log {
     
     public var isEnabled: Bool = true
     
+    public var websocketClient: WebsocketClientType? {
+        didSet {
+            initializeWebsocketClient()
+        }
+    }
+    
     private static let `default`: OSLog = OSLog(subsystem: subsystem, category: Category.default.rawValue)
     private static let network: OSLog = OSLog(subsystem: subsystem, category: Category.network.rawValue)
     
@@ -44,6 +56,7 @@ public class Log {
         
         let itemString = items.map { String(describing: $0) }.joined(separator: " ")
         logToOSLog(category: category, level: level, message: itemString)
+        logToWebsocket(category: category, level: level, message: itemString)
     }
     
     public func log<Target>(category: Category = .default, level: Level, to output: inout Target, items: [Any]) where Target: TextOutputStream {
@@ -54,10 +67,18 @@ public class Log {
         
         let string = dateFormatter.string(from: Date()) + "[\(level.name)]\(level.indicator)" + itemString
         output.write(string)
+        
+        logToWebsocket(category: category, level: level, message: itemString)
     }
     
     private func logToOSLog(category: Category, level: Level, message: String) {
         os_log("%{public}s%{public}s", log: osLog(for: category), type: level.osLogLevel, level.indicator, message)
+    }
+    
+    private func logToWebsocket(category: Category, level: Level, message: String) {
+        guard let ws = websocketClient else { return }
+        let string = dateFormatter.string(from: Date()) + "[\(level.name)]\(level.indicator)" + message
+        ws.send(message: string)
     }
     
     private func osLog(for category: Category) -> OSLog {
@@ -67,6 +88,18 @@ public class Log {
         case .default:
             return Log.default
         }
+    }
+    
+    private func initializeWebsocketClient() {
+        guard let ws = websocketClient else {
+            return
+        }
+        
+        ws.connect()
+    }
+    
+    deinit {
+        websocketClient?.disconnect()
     }
 }
 
