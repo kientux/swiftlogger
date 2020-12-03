@@ -30,7 +30,12 @@ public class Log {
         case network
     }
     
-    public init() {}
+    public init() {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        self.dateFormatter = dateFormatter
+    }
     
     public var isEnabled: Bool = true
     
@@ -43,13 +48,7 @@ public class Log {
     private static let `default`: OSLog = OSLog(subsystem: subsystem, category: Category.default.rawValue)
     private static let network: OSLog = OSLog(subsystem: subsystem, category: Category.network.rawValue)
     
-    private let dateFormatter: DateFormatter = {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dateFormatter.calendar = Calendar(identifier: .gregorian)
-        return dateFormatter
-    }()
+    private let dateFormatter: DateFormatter
     
     public func log(category: Category = .default, level: Level, items: [Any]) {
         guard isEnabled else { return }
