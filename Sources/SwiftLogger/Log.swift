@@ -49,25 +49,23 @@ public class Log {
     private static let network: OSLog = OSLog(subsystem: subsystem, category: Category.network.rawValue)
     
     private let dateFormatter: DateFormatter
+    private let queue: DispatchQueue = DispatchQueue(label: "vn.sapo.swift-logger",
+                                                     qos: .utility)
     
-    public func log(category: Category = .default, level: Level, items: [Any]) {
+    public func log(category: Category = .default,
+                    level: Level,
+                    items: [Any],
+                    outputWriting: ((String) -> Void)? = nil) {
+        
         guard isEnabled else { return }
         
-        let itemString = items.map { String(describing: $0) }.joined(separator: " ")
-        logToOSLog(category: category, level: level, message: itemString)
-        logToWebsocket(category: category, level: level, message: itemString)
-    }
-    
-    public func log<Target>(category: Category = .default, level: Level, to output: inout Target, items: [Any]) where Target: TextOutputStream {
-        guard isEnabled else { return }
-        
-        let itemString = items.map { String(describing: $0) }.joined(separator: " ")
-        logToOSLog(category: category, level: level, message: itemString)
-        
-        let string = dateFormatter.string(from: Date()) + "[\(level.name)]\(level.indicator)" + itemString
-        output.write(string)
-        
-        logToWebsocket(category: category, level: level, message: itemString)
+        queue.async { [self] in
+            let itemString = items.map { String(describing: $0) }.joined(separator: " ")
+            logToOSLog(category: category, level: level, message: itemString)
+            logToWebsocket(category: category, level: level, message: itemString)
+            let string = dateFormatter.string(from: Date()) + "[\(level.name)]\(level.indicator)" + itemString
+            outputWriting?(string)
+        }
     }
     
     private func logToOSLog(category: Category, level: Level, message: String) {
@@ -179,7 +177,9 @@ public extension Log {
         guard isEnabled else { return }
         
         if var output = LogManager.shared.fileHandler {
-            log(category: category, level: level, to: &output, items: items)
+            log(category: category, level: level, items: items) {
+                output.write($0)
+            }
         } else {
             log(category: category, level: level, items: items)
         }
