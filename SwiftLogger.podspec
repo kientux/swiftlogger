@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'SwiftLogger'
-  s.version          = '1.0.5'
+  s.version          = '1.0.6'
   s.summary          = 'Logging tool for Swift'
 
 # This description is used to generate tags and improve search results.
