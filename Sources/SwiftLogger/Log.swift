@@ -176,7 +176,7 @@ public extension Log {
     private func logToFileIfAvailable(level: Level, category: Category = .default, _ items: [Any]) {
         guard isEnabled else { return }
         
-        if var output = LogManager.shared.fileHandler {
+        if let output = LogManager.shared.fileHandler {
             log(category: category, level: level, items: items) {
                 output.write($0)
             }
