@@ -7,5 +7,5 @@ Logging tool for Swift
 - Using Swift Package Manager: you know how
 - Using CocoaPods:
     ```
-    pod 'SwiftLogger'
+    pod 'Swift-Logger'
     ```
