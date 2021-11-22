@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
   s.name             = 'SwiftLogger'
   s.version          = '1.0.7'
   s.summary          = 'Logging tool for Swift'
-  s.license          = { :type => 'GPL 3.0' }
+  s.license          = { :type => 'GPL 3.0', :file => 'LICENSE' }
 
 # This description is used to generate tags and improve search results.
 #   * Think: What does it do? Why did you write it? What is the focus?
@@ -22,9 +22,9 @@ Pod::Spec.new do |s|
   Logging tool for Swift.
                        DESC
 
-  s.homepage         = 'https://github.com/kientux/swift-logger'
+  s.homepage         = 'https://github.com/kientux/swiftlogger'
   s.author           = { 'kientux' => 'ntkien93@gmail.com' }
-  s.source           = { :git => 'https://github.com/kientux/swift-logger.git', :tag => s.version.to_s }
+  s.source           = { :git => 'https://github.com/kientux/swiftlogger.git', :tag => s.version.to_s }
 
   s.ios.deployment_target = '10.0'
   s.swift_versions = '5.0'
