@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Swift-Logger'
-  s.version          = '1.1.0'
+  s.version          = '1.1.3'
   s.summary          = 'Logging tool for Swift'
   s.license          = { :type => 'GPL 3.0', :file => 'LICENSE' }
 
