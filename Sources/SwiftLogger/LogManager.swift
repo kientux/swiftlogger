@@ -1,9 +1,7 @@
 //
 //  LogManager.swift
-//  Sapo
 //
 //  Created by Kien Nguyen on 7/2/20.
-//  Copyright © 2020 Sapo Technology JSC. All rights reserved.
 //
 
 import Foundation
@@ -25,8 +23,15 @@ public class LogManager {
     private let directoryPath: String
     private let filePath: String
     
-    public init(directoryPath: String) {
+    public var maxLogLines: Int? {
+        didSet {
+            fileHandler?.maxLines = maxLogLines
+        }
+    }
+    
+    public init(directoryPath: String, maxLogLines: Int? = nil) {
         self.directoryPath = directoryPath
+        self.maxLogLines = maxLogLines
         
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd"
@@ -47,7 +52,11 @@ public class LogManager {
             }
         }
         
+        var isFileExist: Bool = false
+        
         if !FileManager.default.fileExists(atPath: filePath) {
+            isFileExist = false
+            
             let success = FileManager.default.createFile(atPath: filePath, contents: nil, attributes: nil)
             if !success {
                 print("Error creating file at path \(filePath)")
@@ -56,9 +65,9 @@ public class LogManager {
         }
         
         let url = URL(fileURLWithPath: filePath)
-        if let fileHandler = try? FileHandlerOutputStream(url) {
+        if let fileHandler = try? FileHandlerOutputStream(url, maxLines: maxLogLines) {
             fileHandler.seekToEnd()
-            initialWrite(using: fileHandler)
+            initialWrite(using: fileHandler, appendOnly: isFileExist)
             return fileHandler
         }
         
@@ -88,9 +97,13 @@ public class LogManager {
         try FileManager.default.removeItem(at: fileUrl)
     }
     
-    public func rotate() {
-        fileHandler?.truncate()
-        initialWrite(using: fileHandler)
+    public func rotate(maxSize: UInt64 = 0) {
+        if let path = fileHandler?.filePath.path, let attributes = try? FileManager.default.attributesOfItem(atPath: path) {
+            let size = attributes[.size] as? UInt64 ?? UInt64(0)
+            fileHandler?.truncate(atOffset: min(maxSize, size))
+        }
+        
+        initialWrite(using: fileHandler, appendOnly: false)
     }
     
     public func synchronize() {
@@ -118,10 +131,20 @@ public class LogManager {
         )
     }
     
-    private func initialWrite(using fileHandler: FileHandlerOutputStream?) {
+    private func initialWrite(using fileHandler: FileHandlerOutputStream?,
+                              appendOnly: Bool) {
         guard let fileHandler = fileHandler else { return }
         let filePath = fileHandler.filePath
         fileHandler.write(
+            appendOnly
+            ?
+            """
+            ----------
+            Timestamp: \(Date())
+            ----------
+            
+            """
+            :
             """
             ----------
             File location: \(filePath)

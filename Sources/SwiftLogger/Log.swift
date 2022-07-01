@@ -1,15 +1,13 @@
 //
 //  Log.swift
-//  Sapo
 //
 //  Created by Kien Nguyen on 6/30/20.
-//  Copyright © 2020 Sapo Technology JSC. All rights reserved.
 //
 
 import Foundation
 import os
 
-private let subsystem: String = "com.sapo.mobile"
+private let subsystem: String = "swift-logger"
 
 public protocol WebsocketClientType {
     func send(message: String)
@@ -30,17 +28,27 @@ public class Log {
         case network
     }
     
-    public init() {
+    public enum Output {
+        case osLog
+        case file
+        case websocket
+    }
+    
+    public init(queue: DispatchQueue? = nil) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         self.dateFormatter = dateFormatter
+        self.queue = queue ?? DispatchQueue(label: "swift-logger", qos: .utility)
     }
     
     public var isEnabled: Bool = true
+    public var enabledOutputs: Set<Output> = [.osLog, .file]
+    public var maxFileLogLines: Int?
     
     public var websocketClient: WebsocketClientType? {
         didSet {
+            enabledOutputs.insert(.websocket)
             initializeWebsocketClient()
         }
     }
@@ -49,31 +57,37 @@ public class Log {
     private static let network: OSLog = OSLog(subsystem: subsystem, category: Category.network.rawValue)
     
     private let dateFormatter: DateFormatter
-    private let queue: DispatchQueue = DispatchQueue(label: "vn.sapo.swift-logger",
-                                                     qos: .utility)
+    private let queue: DispatchQueue
     
     public func log(category: Category = .default,
                     level: Level,
-                    items: [Any],
-                    outputWriting: ((String) -> Void)? = nil) {
+                    items: [Any]) {
         
         guard isEnabled else { return }
         
         queue.async { [self] in
             let itemString = items.map { String(describing: $0) }.joined(separator: " ")
             logToOSLog(category: category, level: level, message: itemString)
+            logToFile(level: level, category: category, message: itemString)
             logToWebsocket(category: category, level: level, message: itemString)
-            let string = dateFormatter.string(from: Date()) + "[\(level.name)]\(level.indicator)" + itemString
-            outputWriting?(string)
+        }
+    }
+    
+    private func logToFile(level: Level, category: Category = .default, message: String) {
+        if enabledOutputs.contains(.file), let output = LogManager.shared.fileHandler {
+            let string = dateFormatter.string(from: Date()) + "[\(level.name)]\(level.indicator)" + message
+            output.write(string)
         }
     }
     
     private func logToOSLog(category: Category, level: Level, message: String) {
-        os_log("%{public}s%{public}s", log: osLog(for: category), type: level.osLogLevel, level.indicator, message)
+        if enabledOutputs.contains(.osLog) {
+            os_log("%{public}s%{public}s", log: osLog(for: category), type: level.osLogLevel, level.indicator, message)
+        }
     }
     
     private func logToWebsocket(category: Category, level: Level, message: String) {
-        guard let ws = websocketClient else { return }
+        guard enabledOutputs.contains(.websocket), let ws = websocketClient else { return }
         let string = dateFormatter.string(from: Date()) + "[\(level.name)]\(level.indicator)" + message
         ws.send(message: string)
     }
@@ -158,31 +172,19 @@ public extension Log {
     }
     
     func d(category: Category = .default, _ items: Any...) {
-        logToFileIfAvailable(level: .debug, category: category, items)
+        log(category: category, level: .debug, items: items)
     }
     
     func i(category: Category = .default, _ items: Any...) {
-        logToFileIfAvailable(level: .info, category: category, items)
+        log(category: category, level: .info, items: items)
     }
     
     func w(category: Category = .default, _ items: Any...) {
-        logToFileIfAvailable(level: .warning, category: category, items)
+        log(category: category, level: .warning, items: items)
     }
     
     func e(category: Category = .default, _ items: Any...) {
-        logToFileIfAvailable(level: .error, category: category, items)
-    }
-    
-    private func logToFileIfAvailable(level: Level, category: Category = .default, _ items: [Any]) {
-        guard isEnabled else { return }
-        
-        if let output = LogManager.shared.fileHandler {
-            log(category: category, level: level, items: items) {
-                output.write($0)
-            }
-        } else {
-            log(category: category, level: level, items: items)
-        }
+        log(category: category, level: .error, items: items)
     }
     
     static func logDeinit(_ object: Any) {
