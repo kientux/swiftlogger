@@ -10,11 +10,15 @@ public class FileHandlerOutputStream: TextOutputStream {
     
     private let fileHandle: FileHandle
     private var currentLines: Int = 0
-    private let highWatermark: Int
+    private var highWatermark: Int
     
     public let filePath: URL
-    public var maxLines: Int?
-
+    public var maxLines: Int? {
+        didSet {
+            highWatermark = (maxLines ?? 0) / 3
+        }
+    }
+    
     public init(_ filePath: URL, maxLines: Int? = nil) throws {
         self.fileHandle = try FileHandle(forUpdating: filePath)
         self.filePath = filePath
@@ -29,7 +33,7 @@ public class FileHandlerOutputStream: TextOutputStream {
             }
         }
     }
-
+    
     public func write(_ string: String) {
         if let data = string.data(using: .utf8) {
             fileHandle.write(data)
@@ -45,11 +49,13 @@ public class FileHandlerOutputStream: TextOutputStream {
         guard let maxLines = maxLines else {
             return
         }
-
+        
         currentLines += countLines(data: data)
-            
+        
         if currentLines > maxLines + highWatermark {
             do {
+                print("Truncate log to \(maxLines) lines from \(currentLines).")
+                
                 fileHandle.seek(toFileOffset: 0)
                 let allData = fileHandle.readDataToEndOfFile()
                 let newData = try truncatedLinesFromFile(data: allData,

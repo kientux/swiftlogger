@@ -21,64 +21,46 @@ public class LogManager {
     }
     
     private let directoryPath: String
-    private let filePath: String
+    private var filePath: String = ""
     
-    public var maxLogLines: Int? {
+    public var singleFile: Bool = false {
         didSet {
-            fileHandler?.maxLines = maxLogLines
+            reloadFileHandler()
+        }
+    }
+    public var maxLinesWhenTruncate: Int? {
+        didSet {
+            fileHandler?.maxLines = maxLinesWhenTruncate
         }
     }
     
-    public init(directoryPath: String, maxLogLines: Int? = nil) {
+    public init(directoryPath: String, maxLinesWhenTruncate: Int? = nil) {
         self.directoryPath = directoryPath
-        self.maxLogLines = maxLogLines
-        
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.calendar = Calendar(identifier: .gregorian)
-        
-        let fileName = formatter.string(from: Date())
-        self.filePath = (directoryPath as NSString).appendingPathComponent("\(fileName).txt")
+        self.maxLinesWhenTruncate = maxLinesWhenTruncate
+        self.filePath = generateFilePath()
     }
     
-    public lazy var fileHandler: FileHandlerOutputStream? = {
-        if !FileManager.default.fileExists(atPath: directoryPath) {
-            do {
-                try FileManager.default.createDirectory(atPath: directoryPath, withIntermediateDirectories: true, attributes: nil)
-            } catch {
-                print("Error creating directory at path \(directoryPath):", error)
-                return nil
-            }
-        }
-        
-        var isFileExist: Bool = false
-        
-        if !FileManager.default.fileExists(atPath: filePath) {
-            isFileExist = false
-            
-            let success = FileManager.default.createFile(atPath: filePath, contents: nil, attributes: nil)
-            if !success {
-                print("Error creating file at path \(filePath)")
-                return nil
-            }
-        }
-        
-        let url = URL(fileURLWithPath: filePath)
-        if let fileHandler = try? FileHandlerOutputStream(url, maxLines: maxLogLines) {
-            fileHandler.seekToEnd()
-            initialWrite(using: fileHandler, appendOnly: isFileExist)
-            return fileHandler
-        }
-        
-        return nil
-    }()
+    lazy var fileHandler: FileHandlerOutputStream? = createFileHandler()
+    
+    public typealias FileMetadata = (name: String?, size: Int?)
     
     public func listContents() throws -> [URL] {
         let url = URL(fileURLWithPath: directoryPath, isDirectory: true)
         return try FileManager.default.contentsOfDirectory(at: url,
                                                            includingPropertiesForKeys: [.nameKey, .totalFileSizeKey],
                                                            options: [])
+    }
+    
+    public func listContentMetadatas() throws -> [FileMetadata] {
+        let urls = try listContents()
+        var metadatas: [FileMetadata] = []
+        
+        for url in urls {
+            let values = try url.resourceValues(forKeys: [.nameKey, .fileSizeKey])
+            metadatas.append((values.name, values.fileSize))
+        }
+        
+        return metadatas
     }
     
     public func retrieveContents(ofLogNamed fileName: String) throws -> String? {
@@ -118,6 +100,60 @@ public class LogManager {
     public func isCurrentlyLogged(into fileName: String) -> Bool {
         let filePath = (directoryPath as NSString).appendingPathComponent(fileName)
         return filePath == self.filePath
+    }
+    
+    private func reloadFileHandler() {
+        filePath = generateFilePath()
+        
+        fileHandler?.close()
+        fileHandler = createFileHandler()
+    }
+    
+    private func createFileHandler() -> FileHandlerOutputStream? {
+        if !FileManager.default.fileExists(atPath: directoryPath) {
+            do {
+                try FileManager.default.createDirectory(atPath: directoryPath, withIntermediateDirectories: true, attributes: nil)
+            } catch {
+                print("Error creating directory at path \(directoryPath):", error)
+                return nil
+            }
+        }
+        
+        var isFileExist: Bool = false
+        
+        if !FileManager.default.fileExists(atPath: filePath) {
+            isFileExist = false
+            
+            let success = FileManager.default.createFile(atPath: filePath, contents: nil, attributes: nil)
+            if !success {
+                print("Error creating file at path \(filePath)")
+                return nil
+            }
+        }
+        
+        let url = URL(fileURLWithPath: filePath)
+        if let fileHandler = try? FileHandlerOutputStream(url, maxLines: maxLinesWhenTruncate) {
+            fileHandler.seekToEnd()
+            initialWrite(using: fileHandler, appendOnly: isFileExist)
+            return fileHandler
+        }
+        
+        return nil
+    }
+    
+    private func generateFilePath() -> String {
+        if singleFile {
+            return (directoryPath as NSString).appendingPathComponent("single_log.txt")
+        }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        
+        let date = formatter.string(from: Date())
+        
+        return (directoryPath as NSString).appendingPathComponent("\(date).txt")
     }
     
     private func closedWrite() {
