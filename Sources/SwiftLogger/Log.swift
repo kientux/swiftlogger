@@ -5,7 +5,7 @@
 //
 
 import Foundation
-import os
+import os.log
 
 private let subsystem: String = "swift-logger"
 
@@ -36,7 +36,7 @@ public class Log {
     
     public init(queue: DispatchQueue? = nil) {
         let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.ssss Z"
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         self.dateFormatter = dateFormatter
         self.queue = queue ?? DispatchQueue(label: "swift-logger", qos: .utility)
@@ -68,14 +68,14 @@ public class Log {
         queue.async { [self] in
             let itemString = items.map { String(describing: $0) }.joined(separator: " ")
             logToOSLog(category: category, level: level, message: itemString)
-            logToFile(level: level, category: category, message: itemString)
+            logToFile(category: category, level: level, message: itemString)
             logToWebsocket(category: category, level: level, message: itemString)
         }
     }
     
-    private func logToFile(level: Level, category: Category = .default, message: String) {
+    private func logToFile(category: Category = .default, level: Level, message: String) {
         if enabledOutputs.contains(.file), let output = LogManager.shared.fileHandler {
-            let string = dateFormatter.string(from: Date()) + "[\(level.name)]\(level.indicator)" + message
+            let string = "\(dateFormatter.string(from: Date())) [\(level.name)][\(category.rawValue)]\(level.indicator) \(message)"
             output.write(string)
         }
     }
@@ -88,7 +88,7 @@ public class Log {
     
     private func logToWebsocket(category: Category, level: Level, message: String) {
         guard enabledOutputs.contains(.websocket), let ws = websocketClient else { return }
-        let string = dateFormatter.string(from: Date()) + "[\(level.name)]\(level.indicator)" + message
+        let string = "\(dateFormatter.string(from: Date())) [\(level.name)][\(category.rawValue)]\(level.indicator) \(message)"
         ws.send(message: string)
     }
     
@@ -124,7 +124,7 @@ extension Log.Level {
         case .warning:
             return "⚠️"
         case .error:
-            return "‼️"
+            return "🔴"
         }
     }
     
@@ -139,59 +139,5 @@ extension Log.Level {
         case .error:
             return .error
         }
-    }
-}
-
-public extension Log {
-    
-    static let shared = Log()
-    
-    /// Convenience func to use `shared` instance
-    static func d(category: Category = .default, _ items: Any...) {
-        guard shared.isEnabled else { return } /// prevent unneccessary mapping
-        /// `items` is Array, so it passed to `shared.d()` as first argument instead of varargs -> we have to map
-        shared.d(category: category, items.map({ String(describing: $0) }).joined(separator: " "))
-    }
-    
-    /// Convenience func to use `shared` instance
-    static func i(category: Category = .default, _ items: Any...) {
-        guard shared.isEnabled else { return }
-        shared.i(category: category, items.map({ String(describing: $0) }).joined(separator: " "))
-    }
-    
-    /// Convenience func to use `shared` instance
-    static func w(category: Category = .default, _ items: Any...) {
-        guard shared.isEnabled else { return }
-        shared.w(category: category, items.map({ String(describing: $0) }).joined(separator: " "))
-    }
-    
-    /// Convenience func to use `shared` instance
-    static func e(category: Category = .default, _ items: Any...) {
-        guard shared.isEnabled else { return }
-        shared.e(category: category, items.map({ String(describing: $0) }).joined(separator: " "))
-    }
-    
-    func d(category: Category = .default, _ items: Any...) {
-        log(category: category, level: .debug, items: items)
-    }
-    
-    func i(category: Category = .default, _ items: Any...) {
-        log(category: category, level: .info, items: items)
-    }
-    
-    func w(category: Category = .default, _ items: Any...) {
-        log(category: category, level: .warning, items: items)
-    }
-    
-    func e(category: Category = .default, _ items: Any...) {
-        log(category: category, level: .error, items: items)
-    }
-    
-    static func logDeinit(_ object: Any) {
-        Log.d("✅ \(String(describing: type(of: object))) deinit!")
-    }
-    
-    func logCache(_ name: String) {
-        d(category: .network, "✅ Get cached \(name).")
     }
 }

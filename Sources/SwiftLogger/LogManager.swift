@@ -20,23 +20,31 @@ public class LogManager {
         }
     }
     
+    public struct FileConfig {
+        public let useSingleFile: Bool
+        public let linesToTriggerTruncate: Int
+        public let linesToKeepWhenTruncate: Int
+        
+        public init(useSingleFile: Bool = false,
+                    linesToTriggerTruncate: Int = 0,
+                    linesToKeepWhenTruncate: Int = 0) {
+            self.useSingleFile = useSingleFile
+            self.linesToTriggerTruncate = linesToTriggerTruncate
+            self.linesToKeepWhenTruncate = linesToKeepWhenTruncate
+        }
+    }
+    
     private let directoryPath: String
     private var filePath: String = ""
     
-    public var singleFile: Bool = false {
+    public var fileConfig: FileConfig = .init() {
         didSet {
             reloadFileHandler()
         }
     }
-    public var maxLinesWhenTruncate: Int? {
-        didSet {
-            fileHandler?.maxLines = maxLinesWhenTruncate
-        }
-    }
     
-    public init(directoryPath: String, maxLinesWhenTruncate: Int? = nil) {
+    public init(directoryPath: String) {
         self.directoryPath = directoryPath
-        self.maxLinesWhenTruncate = maxLinesWhenTruncate
         self.filePath = generateFilePath()
     }
     
@@ -132,7 +140,11 @@ public class LogManager {
         }
         
         let url = URL(fileURLWithPath: filePath)
-        if let fileHandler = try? FileHandlerOutputStream(url, maxLines: maxLinesWhenTruncate) {
+        if let fileHandler = try? FileHandlerOutputStream(
+            filePath: url,
+            linesToTriggerTruncate: fileConfig.linesToTriggerTruncate,
+            linesToKeepWhenTruncate: fileConfig.linesToKeepWhenTruncate
+        ) {
             fileHandler.seekToEnd()
             initialWrite(using: fileHandler, appendOnly: isFileExist)
             return fileHandler
@@ -142,8 +154,8 @@ public class LogManager {
     }
     
     private func generateFilePath() -> String {
-        if singleFile {
-            return (directoryPath as NSString).appendingPathComponent("single_log.txt")
+        if fileConfig.useSingleFile {
+            return (directoryPath as NSString).appendingPathComponent("swiftlog.txt")
         }
         
         let formatter = DateFormatter()
@@ -176,15 +188,14 @@ public class LogManager {
             ?
             """
             ----------
-            Timestamp: \(Date())
+            File appended: \(Date())
             ----------
             
             """
             :
             """
             ----------
-            File location: \(filePath)
-            
+            File open: \(filePath)
             Timestamp: \(Date())
             ----------
             

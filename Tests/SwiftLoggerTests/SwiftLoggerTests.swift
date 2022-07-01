@@ -3,19 +3,22 @@ import XCTest
 
 final class SwiftLoggerTests: XCTestCase {
     func testExample() {
-        LogManager.shared.singleFile = true
-        LogManager.shared.maxLinesWhenTruncate = 20000
+        LogManager.shared.fileConfig = .init(useSingleFile: true,
+                                             linesToTriggerTruncate: 20000,
+                                             linesToKeepWhenTruncate: 10000)
         
         let log = Log(queue: .main)
         log.enabledOutputs = [.file]
         
-        for _ in 0...50000 {
-            log.d(
-                """
-                let metadatas = try? LogManager.shared.listContentMetadatas()
-                let metadatas = try? LogManager.shared.listContentMetadatas()
-                """
-            )
+        var request = URLRequest(url: URL(string: "https://google.com")!)
+        request.httpMethod = "GET"
+        request.setValue("001", forHTTPHeaderField: "Header-Field-1")
+        request.setValue("002", forHTTPHeaderField: "Header-Field-2")
+        request.setValue("003", forHTTPHeaderField: "Header-Field-3")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        for i in (0...30000).reversed() {
+            log.logcURLRequest(request, prefix: "#\(i)")
         }
     }
 

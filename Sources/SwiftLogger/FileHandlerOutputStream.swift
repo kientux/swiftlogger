@@ -6,26 +6,28 @@
 
 import Foundation
 
-public class FileHandlerOutputStream: TextOutputStream {
+class FileHandlerOutputStream: TextOutputStream {
     
     private let fileHandle: FileHandle
+    
+    private let linesToKeepWhenTruncate: Int
+    private let linesToTriggerTruncate: Int
     private var currentLines: Int = 0
-    private var highWatermark: Int
     
     public let filePath: URL
-    public var maxLines: Int? {
-        didSet {
-            highWatermark = (maxLines ?? 0) / 3
-        }
-    }
     
-    public init(_ filePath: URL, maxLines: Int? = nil) throws {
+    init(filePath: URL,
+         linesToTriggerTruncate: Int = 0,
+         linesToKeepWhenTruncate: Int = 0) throws {
         self.fileHandle = try FileHandle(forUpdating: filePath)
         self.filePath = filePath
-        self.maxLines = maxLines
-        self.highWatermark = (maxLines ?? 0) / 3
         
-        if maxLines != nil {
+        assert(linesToTriggerTruncate > linesToKeepWhenTruncate, "linesToKeepWhenTruncate is smaller than or equal to linesToTriggerTruncate, this will trigger truncate every time after log lines reached linesToTriggerTruncate and drastically reduce logging performance.")
+        
+        self.linesToKeepWhenTruncate = linesToKeepWhenTruncate
+        self.linesToTriggerTruncate = linesToTriggerTruncate
+        
+        if linesToTriggerTruncate > 0 {
             do {
                 currentLines = try countLines(filePath: filePath)
             } catch {
@@ -34,7 +36,7 @@ public class FileHandlerOutputStream: TextOutputStream {
         }
     }
     
-    public func write(_ string: String) {
+    func write(_ string: String) {
         if let data = string.data(using: .utf8) {
             fileHandle.write(data)
             if let newLine = "\n".data(using: .utf8) {
@@ -46,24 +48,24 @@ public class FileHandlerOutputStream: TextOutputStream {
     }
     
     private func truncateLinesIfNeeded(data: Data) {
-        guard let maxLines = maxLines else {
+        guard linesToTriggerTruncate > 0 else {
             return
         }
         
         currentLines += countLines(data: data)
         
-        if currentLines > maxLines + highWatermark {
+        if currentLines >= linesToTriggerTruncate {
             do {
-                print("Truncate log to \(maxLines) lines from \(currentLines).")
+                print("Truncate log to \(linesToKeepWhenTruncate) lines from \(currentLines).")
                 
                 fileHandle.seek(toFileOffset: 0)
                 let allData = fileHandle.readDataToEndOfFile()
-                let newData = try truncatedLinesFromFile(data: allData,
-                                                         linesToKeep: maxLines)
+                let truncatedData = try truncatedLinesFromFile(data: allData,
+                                                               linesToKeep: linesToKeepWhenTruncate)
                 fileHandle.truncateFile(atOffset: 0)
-                fileHandle.write(newData)
+                fileHandle.write(truncatedData)
                 
-                currentLines = maxLines
+                currentLines = linesToKeepWhenTruncate
             } catch {
                 print(error)
             }
@@ -108,7 +110,7 @@ public class FileHandlerOutputStream: TextOutputStream {
     }
 }
 
-public extension FileHandlerOutputStream {
+extension FileHandlerOutputStream {
     func truncate(atOffset: UInt64 = 0) {
         fileHandle.truncateFile(atOffset: atOffset)
     }
