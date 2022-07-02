@@ -22,7 +22,7 @@ class FileHandlerOutputStream: TextOutputStream {
         self.fileHandle = try FileHandle(forUpdating: filePath)
         self.filePath = filePath
         
-        assert(linesToTriggerTruncate > linesToKeepWhenTruncate, "linesToKeepWhenTruncate is smaller than or equal to linesToTriggerTruncate, this will trigger truncate every time after log lines reached linesToTriggerTruncate and drastically reduce logging performance.")
+        assert(linesToTriggerTruncate == 0 || linesToTriggerTruncate > linesToKeepWhenTruncate, "linesToKeepWhenTruncate is smaller than or equal to linesToTriggerTruncate, this will trigger truncate every time after log lines reached linesToTriggerTruncate and drastically reduce logging performance.")
         
         self.linesToKeepWhenTruncate = linesToKeepWhenTruncate
         self.linesToTriggerTruncate = linesToTriggerTruncate
