@@ -34,6 +34,10 @@ public class Log {
         case websocket
     }
     
+    /// Create a `Log` instance with a queue. `queue` should be serial,
+    /// or else log lines could be in an incorrect order.
+    /// Pass `nil` to use a default queue with `.utility` QoS.
+    /// - Parameter queue: queue to execute all writing log actions
     public init(queue: DispatchQueue? = nil) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.ssss Z"
@@ -42,13 +46,15 @@ public class Log {
         self.queue = queue ?? DispatchQueue(label: "swift-logger", qos: .utility)
     }
     
+    /// Global flag to enable/disable logging
     public var isEnabled: Bool = true
-    public var enabledOutputs: Set<Output> = [.osLog, .file]
-    public var maxFileLogLines: Int?
     
+    /// Specific which outputs to be enabled. Defaults to `[.osLog, .file]`
+    public var enabledOutputs: Set<Output> = [.osLog, .file]
+    
+    /// Websocket client to be used for `.websocket` output
     public var websocketClient: WebsocketClientType? {
         didSet {
-            enabledOutputs.insert(.websocket)
             initializeWebsocketClient()
         }
     }
@@ -59,6 +65,11 @@ public class Log {
     private let dateFormatter: DateFormatter
     private let queue: DispatchQueue
     
+    /// Log items
+    /// - Parameters:
+    ///   - category: category of this log
+    ///   - level: log level
+    ///   - items: items
     public func log(category: Category = .default,
                     level: Level,
                     items: [Any]) {

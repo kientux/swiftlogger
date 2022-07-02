@@ -21,8 +21,13 @@ public class LogManager {
     }
     
     public struct FileConfig {
+        /// Use single log file or split log files by date
         public let useSingleFile: Bool
+        
+        /// Number of lines where log file getting truncated (high watermark)
         public let linesToTriggerTruncate: Int
+        
+        /// Number of lines to keep when truncation is triggered (low watermark)
         public let linesToKeepWhenTruncate: Int
         
         public init(useSingleFile: Bool = false,
@@ -52,13 +57,24 @@ public class LogManager {
     
     public typealias FileMetadata = (name: String?, size: Int?)
     
+    /// Get all log files path with some useful properties
+    /// - Returns: list `URL` to log file
     public func listContents() throws -> [URL] {
         let url = URL(fileURLWithPath: directoryPath, isDirectory: true)
-        return try FileManager.default.contentsOfDirectory(at: url,
-                                                           includingPropertiesForKeys: [.nameKey, .totalFileSizeKey],
-                                                           options: [])
+        return try FileManager.default.contentsOfDirectory(
+            at: url,
+            includingPropertiesForKeys: [
+                .nameKey,
+                .totalFileSizeKey,
+                .creationDateKey,
+                .contentModificationDateKey,
+            ],
+            options: []
+        )
     }
     
+    /// Get all log files with name and file size property
+    /// - Returns: list metadata
     public func listContentMetadatas() throws -> [FileMetadata] {
         let urls = try listContents()
         var metadatas: [FileMetadata] = []
@@ -71,12 +87,17 @@ public class LogManager {
         return metadatas
     }
     
+    /// Retrieve content of a log file by name
+    /// - Parameter fileName: log file name, from `listContents()` or `listContentMetadatas()`
+    /// - Returns: content of log file
     public func retrieveContents(ofLogNamed fileName: String) throws -> String? {
         let filePath = (directoryPath as NSString).appendingPathComponent(fileName)
         let fileUrl = URL(fileURLWithPath: filePath)
         return try String(contentsOf: fileUrl, encoding: .utf8)
     }
     
+    /// Delete log file by name
+    /// - Parameter fileName: log file name, from `listContents()` or `listContentMetadatas()`
     public func deleteLog(named fileName: String) throws {
         if isCurrentlyLogged(into: fileName) {
             throw CustomError(message: "Cannot delete current log file. Use rotate instead.")
@@ -87,6 +108,8 @@ public class LogManager {
         try FileManager.default.removeItem(at: fileUrl)
     }
     
+    /// Rotate (clear) current log file
+    /// - Parameter maxSize: file size to keep, defaults to `0`
     public func rotate(maxSize: UInt64 = 0) {
         if let path = fileHandler?.filePath.path, let attributes = try? FileManager.default.attributesOfItem(atPath: path) {
             let size = attributes[.size] as? UInt64 ?? UInt64(0)
@@ -96,15 +119,20 @@ public class LogManager {
         initialWrite(using: fileHandler, appendOnly: false)
     }
     
+    /// Manually write all in-mem file data to storage
     public func synchronize() {
         fileHandler?.synchronize()
     }
     
+    /// Close file handler
     public func close() {
         closedWrite()
         fileHandler?.close()
     }
     
+    /// Check if a log file is current log
+    /// - Parameter fileName: fileName
+    /// - Returns: `true` if currently logging into `fileName`
     public func isCurrentlyLogged(into fileName: String) -> Bool {
         let filePath = (directoryPath as NSString).appendingPathComponent(fileName)
         return filePath == self.filePath

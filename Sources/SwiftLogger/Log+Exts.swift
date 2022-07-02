@@ -36,26 +36,48 @@ public extension Log {
         shared.e(category: category, items.map({ String(describing: $0) }).joined(separator: " "))
     }
     
+    /// Convenience func to log with `.debug` level
+    /// - Parameters:
+    ///   - category: category
+    ///   - items: items
     func d(category: Category = .default, _ items: Any...) {
         log(category: category, level: .debug, items: items)
     }
     
+    /// Convenience func to log with `.info` level
+    /// - Parameters:
+    ///   - category: category
+    ///   - items: items
     func i(category: Category = .default, _ items: Any...) {
         log(category: category, level: .info, items: items)
     }
     
+    /// Convenience func to log with `.warning` level
+    /// - Parameters:
+    ///   - category: category
+    ///   - items: items
     func w(category: Category = .default, _ items: Any...) {
         log(category: category, level: .warning, items: items)
     }
     
+    /// Convenience func to log with `.error` level
+    /// - Parameters:
+    ///   - category: category
+    ///   - items: items
     func e(category: Category = .default, _ items: Any...) {
         log(category: category, level: .error, items: items)
     }
     
+    /// Put inside `deinit` to log an object deinitialization with `.debug` level
+    /// - Parameter object: object
     func logDeinit(_ object: Any) {
         d("✅ \(String(describing: type(of: object))) deinit!")
     }
     
+    /// Log `URLRequest` in  cURL format with `.debug` level
+    /// - Parameters:
+    ///   - request: request to log
+    ///   - prefix: prefix to append before cURL string
     func logcURLRequest(_ request: URLRequest, prefix: String? = nil) {
         guard isEnabled else {
             return
