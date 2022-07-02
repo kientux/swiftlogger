@@ -2,10 +2,7 @@
 
 Logging tool for Swift
 
-## Installations:
-
-- Using Swift Package Manager: you know how
-- Using CocoaPods:
-    ```
-    pod 'Swift-Logger'
-    ```
+## Log to:
+- `osLog`
+- File, with a `LogManager` to manage log files
+- Any websocket client
