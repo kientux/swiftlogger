@@ -55,7 +55,12 @@ public class LogManager {
     
     lazy var fileHandler: FileHandlerOutputStream? = createFileHandler()
     
-    public typealias FileMetadata = (name: String?, size: Int?)
+    public struct FileMetadata {
+        public var name: String
+        public var size: Int
+        public var path: URL
+        public var isCurrent: Bool
+    }
     
     /// Get all log files path with some useful properties
     /// - Returns: list `URL` to log file
@@ -73,7 +78,7 @@ public class LogManager {
         )
     }
     
-    /// Get all log files with name and file size property
+    /// Get all log files with metadatas
     /// - Returns: list metadata
     public func listContentMetadatas() throws -> [FileMetadata] {
         let urls = try listContents()
@@ -81,7 +86,11 @@ public class LogManager {
         
         for url in urls {
             let values = try url.resourceValues(forKeys: [.nameKey, .fileSizeKey])
-            metadatas.append((values.name, values.fileSize))
+            let metadata = FileMetadata(name: values.name ?? "",
+                                        size: values.fileSize ?? 0,
+                                        path: url,
+                                        isCurrent: isCurrentlyLogged(into: values.name ?? ""))
+            metadatas.append(metadata)
         }
         
         return metadatas
