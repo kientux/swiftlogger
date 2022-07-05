@@ -212,27 +212,27 @@ extension FileHandle {
 }
 
 extension FileHandlerOutputStream {
-    func truncate(atOffset offset: UInt64 = 0) throws {
+    func truncate(atOffset offset: UInt64 = 0) {
         fileHandle.safeTruncate(atOffset: offset)
     }
     
-    func synchronize() throws {
+    func synchronize() {
         fileHandle.safeSync()
     }
     
-    func seekTo(offset: UInt64) throws {
+    func seekTo(offset: UInt64) {
         fileHandle.safeSeekTo(offset: offset)
     }
     
-    func seekToStart() throws {
+    func seekToStart() {
         fileHandle.safeSeekToStart()
     }
     
-    func seekToEnd() throws {
+    func seekToEnd() {
         fileHandle.safeSeekToEnd()
     }
     
-    func close() throws {
+    func close() {
         fileHandle.safeClose()
     }
 }
