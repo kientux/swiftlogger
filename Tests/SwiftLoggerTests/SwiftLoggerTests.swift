@@ -23,6 +23,8 @@ final class SwiftLoggerTests: XCTestCase {
         for i in (0...50000).reversed() {
             log.logcURLRequest(request, prefix: "#\(i)")
         }
+        
+        print(LogManager.shared.filePath)
     }
 
     static var allTests = [

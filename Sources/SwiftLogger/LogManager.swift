@@ -40,7 +40,7 @@ public class LogManager {
     }
     
     private let directoryPath: String
-    private var filePath: String = ""
+    private(set) var filePath: String = ""
     
     public var fileConfig: FileConfig = .init() {
         didSet {

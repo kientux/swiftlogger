@@ -78,15 +78,15 @@ public extension Log {
     /// - Parameters:
     ///   - request: request to log
     ///   - prefix: prefix to append before cURL string
-    func logcURLRequest(_ request: URLRequest, prefix: String? = nil) {
+    func logcURLRequest(_ request: URLRequest, withBody: Bool = true, prefix: String? = nil) {
         guard isEnabled else {
             return
         }
         
         if let prefix = prefix {
-            d(category: .network, prefix, request.curlString ?? "")
+            d(category: .network, prefix, request.generatecURL(withBody: withBody) ?? request.description)
         } else {
-            d(category: .network, request.curlString ?? "")
+            d(category: .network, request.generatecURL(withBody: withBody) ?? request.description)
         }
     }
 }
@@ -96,7 +96,7 @@ private extension URLRequest {
     /**
      Returns a cURL command representation of this URL request.
      */
-    var curlString: String? {
+    func generatecURL(withBody: Bool = true) -> String? {
         guard let url = url, let method = httpMethod?.uppercased() else { return nil }
         var baseCommand = #"curl -L "\#(url.absoluteString)""#
         
@@ -116,8 +116,16 @@ private extension URLRequest {
             }
         }
         
-        if let data = httpBody, let body = String(data: data, encoding: .utf8) {
-            command.append("-d '\(body)'")
+        if let data = httpBody {
+            if withBody {
+                if let body = String(data: data, encoding: .utf8) {
+                    command.append("-d '\(body)'")
+                } else {
+                    command.append("-d '<body is non-string>'")
+                }
+            } else {
+                command.append("-d '<body is ommited>'")
+            }
         }
         
         return command.joined(separator: " \\\n\t")

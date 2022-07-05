@@ -6,6 +6,8 @@
 
 import Foundation
 
+private let TAG = "[FileHandlerOutputStream]"
+
 class FileHandlerOutputStream: TextOutputStream {
     
     private let fileHandle: FileHandle
@@ -22,7 +24,10 @@ class FileHandlerOutputStream: TextOutputStream {
         self.fileHandle = try FileHandle(forUpdating: filePath)
         self.filePath = filePath
         
-        assert(linesToTriggerTruncate == 0 || linesToTriggerTruncate > linesToKeepWhenTruncate, "linesToKeepWhenTruncate is smaller than or equal to linesToTriggerTruncate, this will trigger truncate every time after log lines reached linesToTriggerTruncate and drastically reduce logging performance.")
+        assert(linesToTriggerTruncate == 0 || linesToTriggerTruncate > linesToKeepWhenTruncate,
+               "linesToKeepWhenTruncate is smaller than or equal to linesToTriggerTruncate, " +
+               "this will trigger truncate every time after log lines reached " +
+               "linesToTriggerTruncate and drastically reduce logging performance.")
         
         self.linesToKeepWhenTruncate = linesToKeepWhenTruncate
         self.linesToTriggerTruncate = linesToTriggerTruncate
@@ -31,16 +36,16 @@ class FileHandlerOutputStream: TextOutputStream {
             do {
                 currentLines = try countLines(filePath: filePath)
             } catch {
-                print(error)
+                print(TAG, error)
             }
         }
     }
     
     func write(_ string: String) {
         if let data = string.data(using: .utf8) {
-            fileHandle.write(data)
+            fileHandle.safeWrite(data)
             if let newLine = "\n".data(using: .utf8) {
-                fileHandle.write(newLine)
+                fileHandle.safeWrite(newLine)
             }
             
             truncateLinesIfNeeded(data: data)
@@ -56,18 +61,18 @@ class FileHandlerOutputStream: TextOutputStream {
         
         if currentLines >= linesToTriggerTruncate {
             do {
-                print("Truncate log to \(linesToKeepWhenTruncate) lines from \(currentLines).")
+                print(TAG, "Truncate log to \(linesToKeepWhenTruncate) lines from \(currentLines).")
                 
-                fileHandle.seek(toFileOffset: 0)
-                let allData = fileHandle.readDataToEndOfFile()
+                fileHandle.safeSeekToStart()
+                let allData = fileHandle.safeReadToEnd() ?? Data()
                 let truncatedData = try truncatedLinesFromFile(data: allData,
                                                                linesToKeep: linesToKeepWhenTruncate)
-                fileHandle.truncateFile(atOffset: 0)
-                fileHandle.write(truncatedData)
+                fileHandle.safeTruncate(atOffset: 0)
+                fileHandle.safeWrite(truncatedData)
                 
                 currentLines = linesToKeepWhenTruncate
             } catch {
-                print(error)
+                print(TAG, error)
             }
         }
     }
@@ -110,20 +115,124 @@ class FileHandlerOutputStream: TextOutputStream {
     }
 }
 
+/// Safe extensions to do FileHandle actions on iOS 13+/macOS 10.15+ when possible
+/// because those new APIs throws error instead of ObjectiveC exceptions.
+/// These extensions ignore throwed errors.
+/// On prior OS versions, exceptions can still occur.
+extension FileHandle {
+    
+    func safeReadToEnd() -> Data? {
+        if #available(iOS 13.4, macOS 10.15.4, *) {
+            do {
+                return try readToEnd()
+            } catch {
+                print(TAG, "Failed to read to end:", error)
+                return nil
+            }
+        } else {
+            return readDataToEndOfFile()
+        }
+    }
+    
+    func safeWrite(_ data: Data) {
+        if #available(iOS 13.4, macOS 10.15.4, *) {
+            do {
+                try write(contentsOf: data)
+            } catch {
+                print(TAG, "Failed to write data:", error)
+            }
+        } else {
+            write(data)
+        }
+    }
+    
+    func safeTruncate(atOffset offset: UInt64) {
+        if #available(iOS 13.0, macOS 10.15, *) {
+            do {
+                try truncate(atOffset: offset)
+            } catch {
+                print(TAG, "Failed to truncate:", error)
+            }
+        } else {
+            truncateFile(atOffset: offset)
+        }
+    }
+    
+    func safeSeekTo(offset: UInt64) {
+        if #available(iOS 13.0, macOS 10.15, *) {
+            do {
+                try seek(toOffset: offset)
+            } catch {
+                print(TAG, "Failed to seek to offset \(offset):", error)
+            }
+        } else {
+            seek(toFileOffset: offset)
+        }
+    }
+    
+    func safeSeekToStart() {
+        safeSeekTo(offset: 0)
+    }
+    
+    func safeSeekToEnd() {
+        if #available(iOS 13.4, macOS 10.15.4, *) {
+            do {
+                try seekToEnd()
+            } catch {
+                print(TAG, "Failed to seek to end:", error)
+            }
+        } else {
+            seekToEndOfFile()
+        }
+    }
+    
+    func safeSync() {
+        if #available(iOS 13.0, macOS 10.15, *) {
+            do {
+                try synchronize()
+            } catch {
+                print(TAG, "Failed to synchronize:", error)
+            }
+        } else {
+            synchronizeFile()
+        }
+    }
+    
+    func safeClose() {
+        if #available(iOS 13.0, macOS 10.15, *) {
+            do {
+                try close()
+            } catch {
+                print(TAG, "Failed to close:", error)
+            }
+        } else {
+            closeFile()
+        }
+    }
+}
+
 extension FileHandlerOutputStream {
-    func truncate(atOffset: UInt64 = 0) {
-        fileHandle.truncateFile(atOffset: atOffset)
+    func truncate(atOffset offset: UInt64 = 0) throws {
+        fileHandle.safeTruncate(atOffset: offset)
     }
     
-    func synchronize() {
-        fileHandle.synchronizeFile()
+    func synchronize() throws {
+        fileHandle.safeSync()
     }
     
-    func seekToEnd() {
-        fileHandle.seekToEndOfFile()
+    func seekTo(offset: UInt64) throws {
+        fileHandle.safeSeekTo(offset: offset)
     }
     
-    func close() {
-        fileHandle.closeFile()
+    func seekToStart() throws {
+        fileHandle.safeSeekToStart()
+    }
+    
+    func seekToEnd() throws {
+        fileHandle.safeSeekToEnd()
+    }
+    
+    func close() throws {
+        fileHandle.safeClose()
     }
 }
