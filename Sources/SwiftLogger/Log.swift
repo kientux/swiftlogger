@@ -80,12 +80,6 @@ public class Log {
         }
     }
     
-    public func updateLogManagerFileConfig(_ fileConfig: LogManager.FileConfig) {
-        queue.async {
-            self.logManager.fileConfig = fileConfig
-        }
-    }
-    
     private func logToFile(level: Level, message: String) {
         if enabledOutputs.contains(.file) {
             let string = "\(dateFormatter.string(from: Date())) [\(level.name)]\(level.indicator) \(message)"
@@ -142,6 +136,21 @@ extension Log.Level {
             return .default
         case .error:
             return .error
+        }
+    }
+}
+
+extension Log {
+    
+    public func updateLogManagerFileConfig(_ fileConfig: LogManager.FileConfig) {
+        queue.async {
+            self.logManager.fileConfig = fileConfig
+        }
+    }
+    
+    public func synchronizeLogFile() {
+        queue.async {
+            self.logManager.synchronize()
         }
     }
 }
