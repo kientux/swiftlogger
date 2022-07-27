@@ -42,7 +42,7 @@ public class LogManager {
     private let directoryPath: String
     private(set) var filePath: String = ""
     
-    public var fileConfig: FileConfig = .init() {
+    public internal(set) var fileConfig: FileConfig = .init() {
         didSet {
             reloadFileHandler()
         }
@@ -51,9 +51,10 @@ public class LogManager {
     public init(directoryPath: String) {
         self.directoryPath = directoryPath
         self.filePath = generateFilePath()
+        self.fileHandler = createFileHandler()
     }
     
-    lazy var fileHandler: FileHandlerOutputStream? = createFileHandler()
+    private var fileHandler: FileHandlerOutputStream?
     
     public struct FileMetadata {
         public var name: String
@@ -118,13 +119,8 @@ public class LogManager {
     }
     
     /// Rotate (clear) current log file
-    /// - Parameter maxSize: file size to keep, defaults to `0`
-    public func rotate(maxSize: UInt64 = 0) {
-        if let path = fileHandler?.filePath.path, let attributes = try? FileManager.default.attributesOfItem(atPath: path) {
-            let size = attributes[.size] as? UInt64 ?? UInt64(0)
-            fileHandler?.truncate(atOffset: min(maxSize, size))
-        }
-        
+    public func rotate() {
+        fileHandler?.truncate(atOffset: 0)
         initialWrite(using: fileHandler, appendOnly: false)
     }
     
@@ -147,6 +143,10 @@ public class LogManager {
         return filePath == self.filePath
     }
     
+    func write(_ s: String) {
+        fileHandler?.write(s)
+    }
+    
     private func reloadFileHandler() {
         filePath = generateFilePath()
         
@@ -164,7 +164,7 @@ public class LogManager {
             }
         }
         
-        var isFileExist: Bool = false
+        var isFileExist: Bool = true
         
         if !FileManager.default.fileExists(atPath: filePath) {
             isFileExist = false
@@ -241,18 +241,28 @@ public class LogManager {
     }
 }
 
-public extension LogManager {
-    private static let defaultDirectoryPath: String? = {
-        guard let path = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first else {
+extension LogManager {
+    private static func defaultDirectoryPath(extPath: String?) -> String? {
+        guard var path = NSSearchPathForDirectoriesInDomains(
+            .applicationSupportDirectory,
+            .userDomainMask, true).first else {
             return nil
         }
         
-        return (path as NSString).appendingPathComponent("logs")
-    }()
-    
-    convenience init() {
-        self.init(directoryPath: LogManager.defaultDirectoryPath ?? "")
+        path = (path as NSString).appendingPathComponent("logs")
+        
+        if let extPath = extPath {
+            path = (path as NSString).appendingPathComponent(extPath)
+        }
+        
+        return path
     }
     
-    static let shared = LogManager()
+    convenience init() {
+        self.init(directoryPath: LogManager.defaultDirectoryPath(extPath: nil) ?? "")
+    }
+    
+    convenience init(extPath: String?) {
+        self.init(directoryPath: LogManager.defaultDirectoryPath(extPath: extPath) ?? "")
+    }
 }

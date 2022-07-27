@@ -12,60 +12,60 @@ public extension Log {
     static let shared = Log()
     
     /// Convenience func to use `shared` instance
-    static func d(category: Category = .default, _ items: Any...) {
+    static func d(_ items: Any...) {
         guard shared.isEnabled else { return } /// prevent unneccessary mapping
         /// `items` is Array, so it passed to `shared.d()` as first argument instead of varargs -> we have to map
-        shared.d(category: category, items.map({ String(describing: $0) }).joined(separator: " "))
+        shared.d(items.map({ String(describing: $0) }).joined(separator: " "))
     }
     
     /// Convenience func to use `shared` instance
-    static func i(category: Category = .default, _ items: Any...) {
+    static func i(_ items: Any...) {
         guard shared.isEnabled else { return }
-        shared.i(category: category, items.map({ String(describing: $0) }).joined(separator: " "))
+        shared.i(items.map({ String(describing: $0) }).joined(separator: " "))
     }
     
     /// Convenience func to use `shared` instance
-    static func w(category: Category = .default, _ items: Any...) {
+    static func w(_ items: Any...) {
         guard shared.isEnabled else { return }
-        shared.w(category: category, items.map({ String(describing: $0) }).joined(separator: " "))
+        shared.w(items.map({ String(describing: $0) }).joined(separator: " "))
     }
     
     /// Convenience func to use `shared` instance
-    static func e(category: Category = .default, _ items: Any...) {
+    static func e(_ items: Any...) {
         guard shared.isEnabled else { return }
-        shared.e(category: category, items.map({ String(describing: $0) }).joined(separator: " "))
+        shared.e(items.map({ String(describing: $0) }).joined(separator: " "))
     }
     
     /// Convenience func to log with `.debug` level
     /// - Parameters:
     ///   - category: category
     ///   - items: items
-    func d(category: Category = .default, _ items: Any...) {
-        log(category: category, level: .debug, items: items)
+    func d(_ items: Any...) {
+        log(level: .debug, items: items)
     }
     
     /// Convenience func to log with `.info` level
     /// - Parameters:
     ///   - category: category
     ///   - items: items
-    func i(category: Category = .default, _ items: Any...) {
-        log(category: category, level: .info, items: items)
+    func i(_ items: Any...) {
+        log(level: .info, items: items)
     }
     
     /// Convenience func to log with `.warning` level
     /// - Parameters:
     ///   - category: category
     ///   - items: items
-    func w(category: Category = .default, _ items: Any...) {
-        log(category: category, level: .warning, items: items)
+    func w(_ items: Any...) {
+        log(level: .warning, items: items)
     }
     
     /// Convenience func to log with `.error` level
     /// - Parameters:
     ///   - category: category
     ///   - items: items
-    func e(category: Category = .default, _ items: Any...) {
-        log(category: category, level: .error, items: items)
+    func e(_ items: Any...) {
+        log(level: .error, items: items)
     }
     
     /// Put inside `deinit` to log an object deinitialization with `.debug` level
@@ -84,9 +84,9 @@ public extension Log {
         }
         
         if let prefix = prefix {
-            d(category: .network, prefix, request.generatecURL(withBody: withBody) ?? request.description)
+            d(prefix, request.generatecURL(withBody: withBody) ?? request.description)
         } else {
-            d(category: .network, request.generatecURL(withBody: withBody) ?? request.description)
+            d(request.generatecURL(withBody: withBody) ?? request.description)
         }
     }
 }
